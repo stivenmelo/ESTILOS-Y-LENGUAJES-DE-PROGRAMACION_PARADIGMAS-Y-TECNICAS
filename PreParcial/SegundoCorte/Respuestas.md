@@ -142,3 +142,86 @@ por ejemplo:
 >La ventaja principal es que consume menos CPU ya que el busy-wait esta comprobando todo el tiempo si la cola esta vacia `cola.empty()` y pasando `pass`.
 
 
+# Ejercicio 3
+
+## Código completo
+
+```python
+import time, threading
+from concurrent.futures import ThreadPoolExecutor
+
+frases = [
+    "El paradigma paralelo divide el trabajo entre múltiples hilos",
+    "Un hilo es la unidad mínima de ejecución en un proceso",
+    "La condición de carrera ocurre sin sincronización adecuada",
+    "El lock garantiza acceso exclusivo a la sección crítica",
+    "ThreadPoolExecutor reutiliza hilos para reducir el overhead",
+    "El speedup mide la ganancia de velocidad del programa paralelo",
+    "La Ley de Amdahl limita el speedup máximo teórico posible",
+    "El patrón productor consumidor usa una cola compartida segura",
+]
+
+def contar_palabras(frase):
+    # TODO 1: imprime qué worker procesa esta frase
+    print(f"[{threading.current_thread().name}] procesando: '{frase[:30]}...'")
+    time.sleep(0.3)
+    # TODO 2: retorna el número de palabras
+    return len(frase.split())
+
+
+# --- Versión SECUENCIAL ---
+t0 = time.time()
+for f in frases:
+    # TODO 3: llama contar_palabras y acumula
+    total_seq += contar_palabras(f)
+t_seq = time.time() - t0
+print(f"\nSecuencial — palabras: {total_seq} | tiempo: {t_seq:.2f}s\n")
+
+# --- Versión PARALELA ---
+t0 = time.time()
+# TODO 4: usa ThreadPoolExecutor con 4 workers y map()
+with ThreadPoolExecutor(max_workers=4) as pool:
+    resultados = pool.map(contar_palabras, frases)
+    total_par = sum(resultados)   # TODO 5: suma los resultados
+t_par = time.time() - t0
+print(f"\nParalelo — palabras: {total_par} | tiempo: {t_par:.2f}s")
+
+speedup = t_seq / t_par           # TODO 6: calcula speedup
+print(f"Speedup: {speedup:.2f}x")
+```
+
+---
+
+## Tabla de tiempos (valores de ejemplo al ejecutar)
+
+| T_secuencial (s) | T_paralelo (s) | Speedup = T_seq / T_par |
+|-----------------|----------------|------------------------|
+| 2.40 s          | 0.62 s         | ~3.87x                 |
+
+> Los 8 hilos duermen 0.3 s cada uno. En secuencial eso suma 2.4 s. Con 4 workers en paralelo se procesan de a 2 rondas de 4, por eso el tiempo baja a ~0.6 s.
+
+---
+
+## Preguntas de análisis
+
+**1. ¿El total de palabras coincide en ambas versiones? ¿Por qué?**
+
+Sí, siempre coincide. Cada frase tiene un número fijo de palabras sin importar el orden en que se procesen, y `contar_palabras` solo lee la frase sin modificar nada compartido. Da igual qué hilo la ejecute, el resultado es el mismo.
+
+---
+
+**2. ¿El speedup fue cercano a 4x? ¿Por qué no llegó exactamente a 4x?**
+
+Se acerca pero no llega. Crear el pool y repartir tareas tiene un costo extra que no existía en la versión secuencial. Además, siempre hay una parte del programa que corre de forma secuencial (imprimir resultados, sumar, etc.), y según la Ley de Amdahl esa parte es suficiente para que el speedup nunca sea exactamente igual al número de workers.
+
+---
+
+**3. ¿En qué se diferencia `submit()` de `map()`? ¿Cuándo usar cada uno?**
+
+`map()` es como un `for` paralelo: mandas una lista y aplicas la misma función a todos los elementos, recibiendo los resultados en el mismo orden. `submit()` envía una sola tarea y te devuelve un `Future`, lo que te permite controlar cada tarea por separado o hacer algo mientras esperas. Para este ejercicio `map()` es la opción más simple porque la tarea es idéntica para todas las frases.
+
+---
+
+**4. ¿Es descomposición de dominio o funcional?**
+
+Es **descomposición de dominio**: la función que se aplica es siempre la misma (`contar_palabras`), pero los datos se dividen entre los hilos, cada uno recibe una frase distinta. Sería funcional si cada hilo hiciera una tarea diferente sobre los mismos datos.
