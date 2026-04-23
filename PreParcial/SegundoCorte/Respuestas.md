@@ -1,3 +1,8 @@
+#Trabajo realizado por: 
+
+STIVEN DANIEL MELO GUAYAZAN
+LUIGY FERNEY HERNANDEZ GARAY
+
 # EJERCICIO 1
 
 |#|Línea / Sección|Explicación del error y corrección|
